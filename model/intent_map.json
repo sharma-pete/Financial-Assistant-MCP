@@ -1,0 +1,183 @@
+[
+    {
+      "name": "get_stock_price",
+      "description": "Get the current price of one or multiple stocks.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "tickers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of stock ticker symbols"
+          }
+        },
+        "required": ["tickers"]
+      },
+      "examples": [
+        "What's the price of AAPL right now?",
+        "Give me the current prices for Tesla, Google, and Amazon.",
+        "How much is Microsoft stock trading at today?",
+        "Can you fetch the latest stock price for GOOGL?",
+        "Tell me the stock price of TSLA.",
+        "Show me AAPL's current price",
+        "What's MSFT trading at?",
+        "Get me the price for Apple stock",
+        "I want to know Amazon's stock price",
+        "Check the price of NVDA for me",
+        "How much does one share of Tesla cost?",
+        "What are the current prices of AAPL and MSFT?",
+        "Show me how much Apple is worth per share",
+        "Give me a price check on Microsoft",
+        "Could you look up the price of Google stock?"
+      ]
+    },
+    {
+      "name": "get_total_portfolio_value",
+      "description": "Get the total current value of the entire portfolio.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "examples": [
+        "What's the total value of my portfolio?",
+        "How much is my portfolio worth right now?",
+        "Calculate the current total value of the portfolio.",
+        "What is the combined value of all my investments currently?",
+        "Tell me the total portfolio value at the moment.",
+        "What's my portfolio worth?",
+        "Show me the total value of my investments",
+        "How much are all my stocks worth together?",
+        "Give me the full value of my portfolio",
+        "What's the current worth of my entire portfolio?",
+        "Calculate how much my investments are worth",
+        "Show me my total investment value",
+        "What's the grand total of my portfolio?",
+        "How much would I have if I sold everything?",
+        "Give me a total value of all my holdings"
+      ]
+    },
+    {
+      "name": "get_invested_sectors",
+      "description": "Get a list of sectors that the portfolio is invested in.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "examples": [
+        "Which sectors am I invested in?",
+        "What sectors does my portfolio cover?",
+        "List the sectors my investments are in.",
+        "In what industry sectors do I have holdings?",
+        "Show me all the sectors in my portfolio",
+        "What industries am I invested in?",
+        "Give me a breakdown of my portfolio sectors",
+        "What market sectors are in my portfolio?",
+        "Tell me about the sectors I have money in",
+        "Show the different industries I'm invested in",
+        "What types of sectors make up my portfolio?",
+        "List all sectors where I have investments",
+        "Which industry segments am I exposed to?",
+        "What's my sector distribution?",
+        "Give me a sector overview of my investments"
+      ]
+    },
+    {
+      "name": "get_sector_holdings",
+      "description": "Get the holdings for a specific sector.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of sectors to get holdings for"
+          }
+        },
+        "required": ["sectors"]
+      },
+      "examples": [
+        "What are my holdings in the tech sector?",
+        "Show me the stocks I have in the healthcare sector.",
+        "List my investments in the energy sector.",
+        "Which companies do I own in the finance sector?",
+        "Give me the details of my holdings in the Technology sector.",
+        "What tech stocks do I own?",
+        "Show my healthcare investments",
+        "List all my energy sector stocks",
+        "What companies do I have in financials?",
+        "Detail my technology holdings",
+        "Show me what I own in the industrial sector",
+        "What are my consumer discretionary investments?",
+        "List my utility sector holdings",
+        "Which stocks do I have in materials?",
+        "Give me a breakdown of my real estate investments"
+      ]
+    },
+    {
+      "name": "compare_stocks",
+      "description": "Compare metrics or performance of two stocks.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "stock1": {
+            "type": "string",
+            "description": "First stock ticker to compare"
+          },
+          "stock2": {
+            "type": "string",
+            "description": "Second stock ticker to compare"
+          }
+        },
+        "required": ["stock1", "stock2"]
+      },
+      "examples": [
+        "Compare AAPL and MSFT.",
+        "How do Tesla and Ford stock performances compare?",
+        "Show a comparison between AAPL vs GOOGL.",
+        "What's the difference between Microsoft and Apple stock performance?",
+        "Compare Tesla and Toyota stocks",
+        "Show me how AAPL compares to MSFT",
+        "What's the difference between NVDA and AMD?",
+        "Can you compare Amazon and Walmart stocks?",
+        "How does Google stack up against Microsoft?",
+        "Compare the performance of TSLA vs F",
+        "Show me AAPL versus GOOGL metrics",
+        "I want to compare Meta and Google",
+        "Give me a comparison of AMD and Intel",
+        "How do Apple and Samsung stocks compare?"
+      ]
+    },
+    {
+      "name": "get_portfolio_summary",
+      "description": "Get a summary of the portfolio, including overall performance and key statistics.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "examples": [
+        "Give me a summary of my portfolio.",
+        "Summarize my portfolio's current performance.",
+        "What's the overview of my portfolio right now?",
+        "Provide a summary of my portfolio including key statistics.",
+        "Can I get a summary of how my investments are doing?",
+        "Show me a portfolio overview",
+        "Give me a quick summary of my investments",
+        "How is my portfolio performing overall?",
+        "Show me the big picture of my investments",
+        "What's my portfolio status?",
+        "Give me a snapshot of my portfolio",
+        "Show me my investment summary",
+        "What's the current state of my portfolio?",
+        "Provide an overview of my investments",
+        "Give me the highlights of my portfolio"
+      ]
+    }
+  ]
+  
