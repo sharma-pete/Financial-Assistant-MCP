@@ -3,6 +3,7 @@ from protocol.portfolio_services import PortfolioServices
 from model.embeddings import IntentEmbeddings
 from model.llm import LLMProcessor
 import sys
+import asyncio
 from functools import wraps
 from typing import Callable, Dict
 
@@ -30,7 +31,7 @@ class PortfolioApp:
             if hasattr(attr, 'is_command'):
                 self.commands[attr.command_name] = attr
 
-    def run(self, command_name: str = None):
+    async def run(self, command_name: str = None):
         """Execute the specified command or show available commands."""
         if command_name is None:
             print("Available commands:")
@@ -45,10 +46,10 @@ class PortfolioApp:
                 print(f"- {cmd}")
             sys.exit(1)
 
-        self.commands[command_name]()
+        await self.commands[command_name]()
 
     @command('setup')
-    def initialize(self):
+    async def initialize(self):
         """Initialize the application by loading data and setting up services."""
         print("Initializing Portfolio Analysis System...")
         try:
@@ -60,10 +61,9 @@ class PortfolioApp:
             # Initialize embeddings
             print("Initializing embeddings...")
             self.embeddings = IntentEmbeddings()
-            self.embeddings.upload_intents('model/intent_map.json')
+            await asyncio.to_thread(self.embeddings.upload_intents, 'model/intent_map.json')
             print("Embeddings initialized!")
 
-            # Upload intents to Pinecone
             # Initialize portfolio services
             self.portfolio = PortfolioServices()
             print("Portfolio services initialized!")
@@ -74,13 +74,14 @@ class PortfolioApp:
             sys.exit(1)
 
     @command('chat')
-    def run_chat(self):
+    async def run_chat(self):
         """Run the chat interface."""
         if self.portfolio is None:
             self.portfolio = PortfolioServices()
         
         # Initialize LLM processor
         self.llm_processor = LLMProcessor()
+        await self.llm_processor.setup_agent()
         
         print("\nStarting chat interface...")
         print("Type 'exit' to quit the application")
@@ -97,10 +98,10 @@ class PortfolioApp:
                 continue
             
             # Process through LLM pipeline
-            response = self.llm_processor.process_query(user_input)
+            response = await self.llm_processor.process_query(user_input)
             print("\nAssistant:", response)
 
 if __name__ == "__main__":
     app = PortfolioApp()
     command_name = sys.argv[1] if len(sys.argv) > 1 else None
-    app.run(command_name) 
+    asyncio.run(app.run(command_name)) 

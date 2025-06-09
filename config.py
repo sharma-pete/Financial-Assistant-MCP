@@ -1,5 +1,17 @@
 from dotenv import load_dotenv
 import os
+import logging
+import sys
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('portfolio_assistant.log')
+    ]
+)
 
 # Load environment variables from .env file
 load_dotenv()
