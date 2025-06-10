@@ -1,7 +1,6 @@
 from typing import List
 from pydantic import BaseModel, Field
 
-# Pydantic models for parameter validation
 class GetStockPriceParams(BaseModel):
     """Parameters for getting stock prices."""
     tickers: List[str] = Field(description="List of stock ticker symbols")

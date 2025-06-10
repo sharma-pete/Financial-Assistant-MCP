@@ -25,7 +25,6 @@ class PortfolioApp:
         self.portfolio = None
         self.commands: Dict[str, Callable] = {}
         
-        # Register all methods decorated with @command
         for attr_name in dir(self):
             attr = getattr(self, attr_name)
             if hasattr(attr, 'is_command'):
@@ -53,18 +52,15 @@ class PortfolioApp:
         """Initialize the application by loading data and setting up services."""
         print("Initializing Portfolio Analysis System...")
         try:
-            # Load all CSV files into the database
             print("Loading data from CSV files...")
             self.loader.load_csv_files()
             print("Data loaded successfully!")
 
-            # Initialize embeddings
             print("Initializing embeddings...")
             self.embeddings = IntentEmbeddings()
             await asyncio.to_thread(self.embeddings.upload_intents, 'model/intent_map.json')
             print("Embeddings initialized!")
 
-            # Initialize portfolio services
             self.portfolio = PortfolioServices()
             print("Portfolio services initialized!")
             print("\nSetup complete! You can now use 'python app.py chat' to start the chat interface.")
@@ -79,7 +75,6 @@ class PortfolioApp:
         if self.portfolio is None:
             self.portfolio = PortfolioServices()
         
-        # Initialize LLM processor
         self.llm_processor = LLMProcessor()
         await self.llm_processor.setup_agent()
         
@@ -97,7 +92,6 @@ class PortfolioApp:
             if not user_input:
                 continue
             
-            # Process through LLM pipeline
             response = await self.llm_processor.process_query(user_input)
             print("\nAssistant:", response)
 
