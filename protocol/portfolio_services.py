@@ -1,11 +1,13 @@
 import sqlite3
 from typing import List, Dict, Tuple, Union
 import pandas as pd
+from model.embeddings import IntentEmbeddings
 
 class PortfolioServices:
     def __init__(self, db_path='portfolio.db'):
         """Initialize PortfolioServices with database path."""
         self.db_path = db_path
+        self.embeddings = IntentEmbeddings()
 
     def _get_connection(self) -> sqlite3.Connection:
         """Create and return a database connection."""
@@ -21,7 +23,6 @@ class PortfolioServices:
         Returns:
             Dictionary mapping ticker symbols to their prices
         """
-        print("--------------------------------we are in get_stock_price--------------------------------")
         if isinstance(tickers, str):
             tickers = [tickers]
             
@@ -44,7 +45,6 @@ class PortfolioServices:
         Returns:
             Total portfolio value
         """
-        print("--------------------------------we are in get_total_portfolio_value--------------------------------")
         with self._get_connection() as conn:
             query = "SELECT SUM(Quantity * Close) as total_value FROM portfolio"
             result = pd.read_sql_query(query, conn)
@@ -57,7 +57,6 @@ class PortfolioServices:
         Returns:
             List of unique sectors
         """
-        print("--------------------------------we are in get_invested_sectors--------------------------------")
         with self._get_connection() as conn:
             query = "SELECT DISTINCT Sector FROM portfolio ORDER BY Sector"
             result = pd.read_sql_query(query, conn)
@@ -65,7 +64,7 @@ class PortfolioServices:
 
     def get_sector_holdings(self, sectors: Union[str, List[str]]) -> Dict[str, Dict]:
         """
-        Get holdings information for specified sectors.
+        Get holdings information for specified sectors with improved confidence handling.
         
         Args:
             sectors: Single sector string or list of sectors
@@ -73,33 +72,75 @@ class PortfolioServices:
         Returns:
             Dictionary with sector information including total value and stocks
         """
-        print("--------------------------------we are in get_sector_holdings--------------------------------")
         if isinstance(sectors, str):
             sectors = [sectors]
             
         with self._get_connection() as conn:
             holdings = {}
             for sector in sectors:
-                query = """
-                    SELECT 
-                        Ticker,
-                        Quantity,
-                        Close,
-                        (Quantity * Close) as Value,
-                        Weight
-                    FROM portfolio 
-                    WHERE Sector = ?
-                """
-                result = pd.read_sql_query(query, conn, params=(sector,))
+                canonical_sector, similarity = self.embeddings.find_canonical_sector(sector)
                 
-                if not result.empty:
-                    holdings[sector] = {
-                        'total_value': float(result['Value'].sum()),
-                        'stocks': result.to_dict('records'),
-                        'weight': float(result['Weight'].sum())
-                    }
+                if similarity >= 0.3:
+                    query = """
+                        SELECT 
+                            Ticker,
+                            Quantity,
+                            Close,
+                            (Quantity * Close) as Value,
+                            Weight
+                        FROM portfolio 
+                        WHERE Sector = ?
+                    """
+                    result = pd.read_sql_query(query, conn, params=(canonical_sector,))
+                    
+                    if not result.empty:
+                        holdings[sector] = {
+                            'total_value': float(result['Value'].sum()),
+                            'stocks': result.to_dict('records'),
+                            'weight': float(result['Weight'].sum()),
+                            'matched_sector': canonical_sector,
+                            'similarity': similarity,
+                            'confidence': 'high'
+                        }
+                    else:
+                        holdings[sector] = None
+                
+                elif similarity >= 0.15:
+                    query = """
+                        SELECT 
+                            Ticker,
+                            Quantity,
+                            Close,
+                            (Quantity * Close) as Value,
+                            Weight
+                        FROM portfolio 
+                        WHERE Sector = ?
+                    """
+                    result = pd.read_sql_query(query, conn, params=(canonical_sector,))
+                    
+                    if not result.empty:
+                        holdings[sector] = {
+                            'total_value': float(result['Value'].sum()),
+                            'stocks': result.to_dict('records'),
+                            'weight': float(result['Weight'].sum()),
+                            'matched_sector': canonical_sector,
+                            'similarity': similarity,
+                            'confidence': 'medium',
+                            'suggestion': f"I assume you meant the {canonical_sector} sector. Here are the holdings:"
+                        }
+                    else:
+                        holdings[sector] = None
+                
                 else:
-                    holdings[sector] = None
+                    top_sectors = self.embeddings.find_closest_sectors(sector, top_k=3)
+                    suggestions = [s['canonical'] for s in top_sectors] if top_sectors else []
+                    
+                    holdings[sector] = {
+                        'error': 'low_confidence',
+                        'similarity': similarity,
+                        'suggestions': suggestions,
+                        'message': f"Could not confidently match '{sector}'. Did you mean one of these sectors: {', '.join(suggestions)}?"
+                    }
                     
         return holdings
 
@@ -114,7 +155,6 @@ class PortfolioServices:
         Returns:
             Dictionary containing comparison metrics
         """
-        print("--------------------------------we are in compare_stocks--------------------------------")
         with self._get_connection() as conn:
             query = "SELECT * FROM portfolio WHERE Ticker IN (?, ?)"
             result = pd.read_sql_query(query, conn, params=(stock1, stock2))
@@ -155,12 +195,9 @@ class PortfolioServices:
         Returns:
             Dictionary containing portfolio metrics
         """
-        print("--------------------------------we are in get_portfolio_summary--------------------------------")
         with self._get_connection() as conn:
-            # Get total portfolio value
             total_value = self.get_total_portfolio_value()
             
-            # Get sector allocation
             sector_query = """
                 SELECT 
                     Sector,
@@ -172,7 +209,6 @@ class PortfolioServices:
             """
             sector_allocation = pd.read_sql_query(sector_query, conn)
             
-            # Get top holdings
             holdings_query = """
                 SELECT 
                     Ticker,

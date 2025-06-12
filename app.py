@@ -59,6 +59,7 @@ class PortfolioApp:
             print("Initializing embeddings...")
             self.embeddings = IntentEmbeddings()
             await asyncio.to_thread(self.embeddings.upload_intents, 'model/intent_map.json')
+            await asyncio.to_thread(self.embeddings.upload_sectors, 'model/sector_map.json')
             print("Embeddings initialized!")
 
             self.portfolio = PortfolioServices()

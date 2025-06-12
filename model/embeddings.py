@@ -11,82 +11,82 @@ from config import (
 class IntentEmbeddings:
     def __init__(self):
         """Initialize Pinecone client."""
-        # Initialize Pinecone client
         self.pc = Pinecone(api_key=PINECONE_API_KEY)
         
-        # Set up Pinecone index
         self.index_name = PINECONE_INDEX
         self.setup_index()
 
     def setup_index(self):
         """Create Pinecone index if it doesn't exist."""
-        print("--------------------------------we are in setup_index--------------------------------")
         try:
             if not self.pc.has_index(self.index_name):
-                # Create new index with integrated embeddings
                 self.pc.create_index_for_model(
                     name=self.index_name,
                     cloud=PINECONE_CLOUD,
                     region=PINECONE_ENVIRONMENT,
                     embed={
                         "model": "llama-text-embed-v2",
-                        "field_map": {"text": "text"}  # Map 'text' field in our records to 'text' in embedding
+                        "field_map": {"text": "text"}
                     }
                 )
-                print(f"Created new Pinecone index: {self.index_name}")
-            else:
-                print(f"Using existing Pinecone index: {self.index_name}")
-
-            # Get index instance
+            
             self.index = self.pc.Index(self.index_name)
             
-            # Print index stats
             stats = self.index.describe_index_stats()
-            print(f"Index stats: {stats}")
             
         except Exception as e:
-            print(f"Error setting up Pinecone index: {str(e)}")
             raise
 
     def generate_vector_id(self, tool_name: str, example: str) -> str:
         """Generate a unique vector ID for an example query."""
         return f"{tool_name}:{hash(example)}"
 
+    def derive_intent_category(self, tool_name: str) -> str:
+        """Derive the intent category from tool name."""
+        categories = {
+            "get": "retrieval",
+            "compare": "analysis",
+            "calculate": "computation",
+            "show": "display",
+            "list": "enumeration"
+        }
+        for key, category in categories.items():
+            if tool_name.startswith(key):
+                return category
+        return "general"
+
+    def enrich_text_for_embedding(self, tool: Dict[str, Any], example: str, metadata: Dict[str, str]) -> str:
+        """Create focused text for embedding that prioritizes query patterns."""
+        query_pattern = example.strip().lower()
+        
+        action = tool["name"].replace("_", " ").strip()
+        core_purpose = tool["description"].split(".")[0].strip()
+        
+        return f"{query_pattern} | {action} | {core_purpose}"
+
     def prepare_metadata(self, tool: Dict[str, Any]) -> Dict[str, str]:
         """Prepare metadata for a tool using only string values."""
-        print("--------------------------------we are in prepare_metadata--------------------------------")
-        # Convert parameters to a simplified string format
-        params = tool.get("parameters", {})
-        param_properties = params.get("properties", {})
-        param_names = list(param_properties.keys())
-        required_params = params.get("required", [])
-        
-        obj = {
+        return {
             "tool_name": tool["name"],
             "description": tool.get("description", ""),
-            "param_names": ",".join(param_names) if param_names else "",  # Convert list to comma-separated string
-            "required_params": ",".join(required_params) if required_params else ""  # Convert list to comma-separated string
+            "param_names": ",".join(tool.get("parameters", {}).get("properties", {}).keys()),
+            "required_params": ",".join(tool.get("parameters", {}).get("required", [])),
+            "action_type": tool["name"].split("_")[0]
         }
 
-        return obj
-
-    def upload_intents(self, intent_map_path: str, batch_size: int = 100):
-        """
-        Upload intent embeddings to Pinecone with batching support.
-        
-        Args:
-            intent_map_path: Path to the intent map JSON file
-            batch_size: Number of vectors to upsert in each batch
-        """
-        print("--------------------------------we are in upload_intents--------------------------------")
+    def upload_intents(self, intent_map_path: str, batch_size: int = 90):
+        """Upload intent embeddings to Pinecone with batching support."""
         try:
-            # Load intent map
             with open(intent_map_path, 'r') as f:
                 intent_map = json.load(f)
             
-            print(f"Loaded {len(intent_map)} tools from intent map")
+            try:
+                stats = self.index.describe_index_stats()
+                if 'intents' in stats.get('namespaces', {}):
+                    self.delete_all_vectors()
+            except Exception as e:
+                pass
             
-            # Prepare records for upload
             records_to_upsert = []
             total_examples = 0
             
@@ -94,51 +94,38 @@ class IntentEmbeddings:
                 tool_name = tool["name"]
                 metadata = self.prepare_metadata(tool)
                 
-                # Process each example query
                 for example in tool.get("examples", []):
                     vector_id = self.generate_vector_id(tool_name, example)
                     
-                    # Add example to metadata
-                    example_metadata = metadata.copy()
-                    example_metadata["example"] = example
-
-                    # Create record with flattened metadata
+                    enriched_text = self.enrich_text_for_embedding(tool, example, metadata)
+                    
                     record = {
                         "_id": vector_id,
-                        "text": example,  # This matches our field_map in setup_index
+                        "text": enriched_text,
+                        "tool_name": tool_name,
+                        "example": example,
+                        "description": tool.get("description", ""),
+                        "param_names": metadata["param_names"],
+                        "required_params": metadata["required_params"]
                     }
-                    # Add all metadata fields directly to the record
-                    record.update({
-                        "tool_name": example_metadata["tool_name"],
-                        "description": example_metadata["description"],
-                        "param_names": example_metadata["param_names"],
-                        "required_params": example_metadata["required_params"],
-                        "example": example_metadata["example"]
-                    })
+                    
                     records_to_upsert.append(record)
                     total_examples += 1
                     
-                    # Batch upload if we've reached batch_size
                     if len(records_to_upsert) >= batch_size:
                         self.index.upsert_records(
                             namespace="intents",
                             records=records_to_upsert
                         )
-                        print(f"Uploaded batch of {len(records_to_upsert)} records")
                         records_to_upsert = []
             
-            # Upload any remaining records
             if records_to_upsert:
                 self.index.upsert_records(
                     namespace="intents",
                     records=records_to_upsert
                 )
-                print(f"Uploaded final batch of {len(records_to_upsert)} records")
-            
-            print(f"Successfully uploaded {total_examples} examples for {len(intent_map)} tools")
             
         except Exception as e:
-            print(f"Error uploading intents: {str(e)}")
             raise
 
     def find_closest_intent(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
@@ -152,9 +139,7 @@ class IntentEmbeddings:
         Returns:
             List of closest matching intents with their metadata
         """
-        print("--------------------------------we are in find_closest_intent--------------------------------")
         try:
-            # Query Pinecone with text directly using search_records
             results = self.index.search_records(
                 namespace="intents",
                 query={
@@ -164,7 +149,6 @@ class IntentEmbeddings:
                 fields=["tool_name", "description", "param_names", "required_params", "example"]
             )
             
-            # Process and return results
             matches = []
             for match in results['result']['hits']:
                 matches.append({
@@ -179,17 +163,141 @@ class IntentEmbeddings:
             return matches
             
         except Exception as e:
-            print(f"Error finding closest intent: {str(e)}")
             raise
 
     def delete_all_vectors(self):
-        """Delete all vectors from the index (useful for testing/reset)."""
+        """Delete all vectors from the intents namespace."""
         try:
             self.index.delete(delete_all=True, namespace="intents")
-            print(f"Deleted all vectors from namespace 'intents' in index {self.index_name}")
         except Exception as e:
-            print(f"Error deleting vectors: {str(e)}")
+            if "Namespace not found" in str(e):
+                pass
+            else:
+                raise
+
+    def upload_sectors(self, sector_map_path: str, batch_size: int = 90):
+        """
+        Upload sector mappings to Pinecone with enhanced context.
+        
+        Args:
+            sector_map_path: Path to the sector map JSON file
+            batch_size: Number of vectors to upsert in each batch (max 96 for Pinecone)
+        """
+        try:
+            with open(sector_map_path, 'r') as f:
+                sector_map = json.load(f)
+            
+            records_to_upsert = []
+            total_variations = 0
+            
+            for sector in sector_map["sectors"]:
+                canonical = sector["canonical"]
+                variations = sector["variations"]
+                
+                sector_context = f"""
+Primary Sector: {canonical}
+Alternative Names: {", ".join(variations)}
+Industry Context: {canonical} sector including {", ".join(variations[:3])}
+Common Usage: Companies and investments in {canonical} industry
+"""
+                
+                vector_id = f"sector:{hash(canonical)}"
+                records_to_upsert.append({
+                    "_id": vector_id,
+                    "text": sector_context,
+                    "canonical": canonical,
+                    "variations": ",".join(variations)
+                })
+                total_variations += 1
+                
+                if len(records_to_upsert) >= batch_size:
+                    self.index.upsert_records(
+                        namespace="sectors",
+                        records=records_to_upsert
+                    )
+                    records_to_upsert = []
+                
+                for variation in variations:
+                    variation_context = f"""
+Variation: {variation}
+Primary Sector: {canonical}
+Related Terms: {", ".join([v for v in variations if v != variation][:3])}
+Industry Context: Part of {canonical} sector
+"""
+                    vector_id = f"sector:{hash(variation)}"
+                    records_to_upsert.append({
+                        "_id": vector_id,
+                        "text": variation_context,
+                        "canonical": canonical,
+                        "variations": ",".join(variations)
+                    })
+                    total_variations += 1
+                    
+                    if len(records_to_upsert) >= batch_size:
+                        self.index.upsert_records(
+                            namespace="sectors",
+                            records=records_to_upsert
+                        )
+                        records_to_upsert = []
+            
+            if records_to_upsert:
+                self.index.upsert_records(
+                    namespace="sectors",
+                    records=records_to_upsert
+                )
+            
+        except Exception as e:
             raise
+
+    def find_canonical_sector(self, query: str, threshold: float = 0.7) -> tuple[str, float]:
+        """Find canonical sector name for a query with similarity score."""
+        try:
+            results = self.index.search_records(
+                namespace="sectors",
+                query={
+                    "inputs": {"text": query},
+                    "top_k": 3
+                },
+                fields=["canonical"]
+            )
+            
+            if results['result']['hits']:
+                for hit in results['result']['hits']:
+                    pass
+                
+                hit = results['result']['hits'][0]
+                return hit['fields']['canonical'], hit['_score']
+            
+            return query, 0.0
+            
+        except Exception as e:
+            return query, 0.0
+
+    def find_closest_sectors(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
+        """Find closest matching sectors for a query."""
+        try:
+            results = self.index.search_records(
+                namespace="sectors",
+                query={
+                    "inputs": {"text": query},
+                    "top_k": top_k
+                },
+                fields=["canonical", "variations"]
+            )
+            
+            matches = []
+            if results['result']['hits']:
+                for hit in results['result']['hits']:
+                    matches.append({
+                        "canonical": hit['fields']['canonical'],
+                        "variations": hit['fields']['variations'].split(','),
+                        "similarity": hit['_score']
+                    })
+            
+            return matches
+            
+        except Exception as e:
+            return []
 
 # Example usage
 if __name__ == "__main__":
