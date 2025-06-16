@@ -299,27 +299,3 @@ Industry Context: Part of {canonical} sector
         except Exception as e:
             return []
 
-# Example usage
-if __name__ == "__main__":
-    intent_embeddings = IntentEmbeddings()
-    
-    # Upload intents
-    intent_embeddings.upload_intents("model/intent_map.json")
-    
-    # Test some queries
-    test_queries = [
-        "What's the current price of Apple stock?",
-        "Show me my portfolio value",
-        "Compare Tesla and Amazon performance",
-        "What sectors do I have investments in?",
-        "Give me an overview of my investments"
-    ]
-    
-    print("\nTesting queries:")
-    for query in test_queries:
-        print(f"\nQuery: {query}")
-        matches = intent_embeddings.find_closest_intent(query)
-        print("Top matches:")
-        for match in matches:
-            print(f"- {match['tool_name']} (similarity: {match['similarity']:.3f})")
-            print(f"  Example: {match['example']}")

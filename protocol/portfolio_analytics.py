@@ -18,7 +18,6 @@ class PortfolioAnalytics:
         days = self._convert_timeframe_to_days(timeframe)
         
         with self._get_connection() as conn:
-            # Get portfolio holdings and prices
             holdings_query = """
                 SELECT h.Ticker, h.Quantity, h.Weight, p.Date, p.Close, p.Returns
                 FROM portfolio h
@@ -29,14 +28,11 @@ class PortfolioAnalytics:
             
             portfolio_df = pd.read_sql_query(holdings_query, conn, params=[f'-{days} days'])
             
-            # Calculate portfolio returns
             portfolio_returns = self._calculate_portfolio_returns(portfolio_df)
             
-            # Calculate risk metrics
             volatility = portfolio_returns.std() * np.sqrt(252)  # Annualized volatility
             var_95 = np.percentile(portfolio_returns, 5)  # 95% VaR
             
-            # Calculate beta against S&P 500
             market_query = """
                 SELECT Date, Returns as market_return
                 FROM portfolio_prices
@@ -48,12 +44,10 @@ class PortfolioAnalytics:
             market_returns = pd.read_sql_query(market_query, conn, params=[f'-{days} days'])
             market_returns = market_returns.set_index('Date')['market_return']
             
-            # Align dates
             common_dates = portfolio_returns.index.intersection(market_returns.index)
             portfolio_returns = portfolio_returns[common_dates]
             market_returns = market_returns[common_dates]
             
-            # Calculate beta
             covariance = np.cov(portfolio_returns, market_returns)[0, 1]
             market_variance = np.var(market_returns)
             beta = covariance / market_variance if market_variance != 0 else 0
@@ -70,7 +64,6 @@ class PortfolioAnalytics:
         days = self._convert_timeframe_to_days(lookback_period)
         
         with self._get_connection() as conn:
-            # Get historical sector performance
             end_date = datetime.now()
             start_date = end_date - timedelta(days=days)
             
@@ -85,13 +78,10 @@ class PortfolioAnalytics:
             
             performance_df = pd.read_sql_query(performance_query, conn, params=[start_date])
             
-            # Calculate sector momentum
             sector_momentum = self._calculate_sector_momentum(performance_df)
             
-            # Identify rotation opportunities
             rotation_opportunities = self._identify_rotation_opportunities(sector_momentum)
             
-            # Convert sector momentum to dictionary format
             sector_momentum_dict = {
                 'sectors': sector_momentum.index.tolist(),
                 'momentum': sector_momentum.values.tolist()
@@ -116,7 +106,6 @@ class PortfolioAnalytics:
         """
         try:
             with self._get_connection() as conn:
-                # Get portfolio returns
                 portfolio_query = """
                     SELECT p.Date, p.Ticker, p.Returns, h.Sector, h.Weight
                     FROM portfolio_prices p
@@ -125,7 +114,6 @@ class PortfolioAnalytics:
                 """
                 portfolio_returns = pd.read_sql_query(portfolio_query, conn, params=(start_date, end_date))
                 
-                # Get benchmark returns (S&P 500)
                 benchmark_query = """
                     SELECT Date, Returns
                     FROM sp500
@@ -133,7 +121,6 @@ class PortfolioAnalytics:
                 """
                 benchmark_returns = pd.read_sql_query(benchmark_query, conn, params=(start_date, end_date))
                 
-                # Calculate attribution components
                 factor_attribution = self._calculate_factor_attribution(portfolio_returns)
                 sector_attribution = self._calculate_sector_attribution(portfolio_returns)
                 stock_selection = self._calculate_stock_selection(portfolio_returns, benchmark_returns)
@@ -160,7 +147,6 @@ class PortfolioAnalytics:
         """
         try:
             with self._get_connection() as conn:
-                # Get sector concentration
                 sector_query = """
                     SELECT Sector, SUM(Weight) as sector_weight
                     FROM portfolio
@@ -169,7 +155,6 @@ class PortfolioAnalytics:
                 """
                 sector_concentration = pd.read_sql_query(sector_query, conn)
                 
-                # Get individual stock concentration
                 stock_query = """
                     SELECT Ticker, Weight
                     FROM portfolio
@@ -177,7 +162,6 @@ class PortfolioAnalytics:
                 """
                 stock_concentration = pd.read_sql_query(stock_query, conn)
                 
-                # Calculate concentration metrics
                 sector_hhi = self._calculate_hhi(sector_concentration['sector_weight'])
                 stock_hhi = self._calculate_hhi(stock_concentration['Weight'])
                 
@@ -207,7 +191,6 @@ class PortfolioAnalytics:
             days = self._convert_timeframe_to_days(timeframe)
             
             with self._get_connection() as conn:
-                # Get portfolio returns
                 end_date = datetime.now()
                 start_date = end_date - timedelta(days=days)
                 
@@ -219,10 +202,8 @@ class PortfolioAnalytics:
                 """
                 returns_df = pd.read_sql_query(returns_query, conn, params=(start_date.strftime('%Y-%m-%d'),))
                 
-                # Get risk-free rate (using 3-month Treasury yield as proxy)
                 risk_free_rate = 0.05  # This should be fetched from a data source
                 
-                # Calculate efficiency metrics
                 portfolio_returns = self._calculate_portfolio_returns(returns_df)
                 excess_returns = portfolio_returns - risk_free_rate/252  # Daily risk-free rate
                 
@@ -254,7 +235,6 @@ class PortfolioAnalytics:
             days = self._convert_timeframe_to_days(timeframe)
             
             with self._get_connection() as conn:
-                # Get portfolio returns
                 end_date = datetime.now()
                 start_date = end_date - timedelta(days=days)
                 
@@ -266,7 +246,6 @@ class PortfolioAnalytics:
                 """
                 portfolio_returns = pd.read_sql_query(portfolio_query, conn, params=(start_date.strftime('%Y-%m-%d'),))
                 
-                # Get index returns
                 indices = ['sp500', 'dow_jones', 'nasdaq']
                 correlations = {}
                 
@@ -278,7 +257,6 @@ class PortfolioAnalytics:
                     """
                     index_returns = pd.read_sql_query(index_query, conn, params=(start_date.strftime('%Y-%m-%d'),))
                     
-                    # Calculate correlation
                     correlation = self._calculate_correlation(portfolio_returns, index_returns)
                     correlations[index] = correlation
                 
@@ -299,14 +277,12 @@ class PortfolioAnalytics:
         """
         try:
             with self._get_connection() as conn:
-                # Get portfolio holdings
                 portfolio_query = "SELECT Ticker, Quantity, Close, Weight FROM portfolio"
                 portfolio_df = pd.read_sql_query(portfolio_query, conn)
                 
-                # Calculate total value
+                
                 total_value = (portfolio_df['Quantity'] * portfolio_df['Close']).sum()
                 
-                # Get sector allocation
                 sector_query = """
                     SELECT Sector, SUM(Weight) as sector_weight
                     FROM portfolio
@@ -314,10 +290,8 @@ class PortfolioAnalytics:
                 """
                 sector_allocation = pd.read_sql_query(sector_query, conn)
                 
-                # Calculate number of holdings
                 num_holdings = len(portfolio_df)
                 
-                # Calculate average position size
                 avg_position_size = total_value / num_holdings
                 
                 return {
@@ -350,11 +324,9 @@ class PortfolioAnalytics:
     def _calculate_portfolio_returns(self, returns_df: pd.DataFrame, portfolio_df: pd.DataFrame = None) -> pd.Series:
         """Calculate portfolio returns."""
         if portfolio_df is not None:
-            # Calculate returns from portfolio holdings
             returns_df['weighted_return'] = returns_df['Returns'] * returns_df['Weight']
             return returns_df.groupby('Date')['weighted_return'].sum()
         else:
-            # Calculate returns from returns dataframe
             returns_df['weighted_return'] = returns_df['Returns'] * returns_df['Weight']
             return returns_df.groupby('Date')['weighted_return'].sum()
 
@@ -394,7 +366,6 @@ class PortfolioAnalytics:
 
     def _calculate_factor_attribution(self, portfolio_returns: pd.DataFrame) -> Dict[str, float]:
         """Calculate factor attribution."""
-        # This is a simplified version - in practice, you'd use a factor model
         return {
             'market': portfolio_returns['Returns'].mean() * 0.6,
             'size': portfolio_returns['Returns'].mean() * 0.2,
