@@ -11,6 +11,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from model.embeddings import IntentEmbeddings
 from protocol.portfolio_services import PortfolioServices
+from protocol.portfolio_analytics import PortfolioAnalytics
 from model.context import PortfolioAssistantContext
 from model.tool_configs import get_tool_configs
 from config import OPENAI_API_KEY, MODEL_NAME
@@ -24,6 +25,7 @@ class LLMProcessor:
         self.client = AsyncOpenAI(api_key=OPENAI_API_KEY)
         self.embeddings = IntentEmbeddings()
         self.portfolio_services = PortfolioServices()
+        self.portfolio_analytics = PortfolioAnalytics()
         
         with open('model/intent_map.json', 'r') as f:
             self.functions = json.load(f)
@@ -36,7 +38,7 @@ class LLMProcessor:
         """Convert our existing functions to LangChain tools."""
         tools = []
         
-        tool_configs = get_tool_configs(self.portfolio_services)
+        tool_configs = get_tool_configs(self.portfolio_services, self.portfolio_analytics)
         
         for func in self.functions:
             try:

@@ -4,11 +4,18 @@ from model.schemas import (
     GetInvestedSectorsParams,
     GetSectorHoldingsParams,
     CompareStocksParams,
-    GetPortfolioSummaryParams
+    GetPortfolioSummaryParams,
+    PortfolioRiskMetricsParams,
+    SectorRotationParams,
+    PerformanceAttributionParams,
+    PortfolioConcentrationParams,
+    PortfolioEfficiencyParams,
+    MarketCorrelationParams,
+    PortfolioMetricsParams
 )
 
-def get_tool_configs(portfolio_services):
-    """Get tool configurations with portfolio services instance."""
+def get_tool_configs(portfolio_services, portfolio_analytics):
+    """Get tool configurations with portfolio services and analytics instances."""
     return {
         "get_stock_price": {
             "model": GetStockPriceParams,
@@ -38,6 +45,41 @@ def get_tool_configs(portfolio_services):
         "get_portfolio_summary": {
             "model": GetPortfolioSummaryParams,
             "method": lambda *args: portfolio_services.get_portfolio_summary(),
+            "has_params": False
+        },
+        "calculate_portfolio_risk_metrics": {
+            "model": PortfolioRiskMetricsParams,
+            "method": portfolio_analytics.calculate_portfolio_risk_metrics,
+            "has_params": True
+        },
+        "analyze_sector_rotation": {
+            "model": SectorRotationParams,
+            "method": portfolio_analytics.analyze_sector_rotation,
+            "has_params": True
+        },
+        "calculate_performance_attribution": {
+            "model": PerformanceAttributionParams,
+            "method": portfolio_analytics.calculate_performance_attribution,
+            "has_params": True
+        },
+        "analyze_portfolio_concentration": {
+            "model": PortfolioConcentrationParams,
+            "method": lambda *args: portfolio_analytics.analyze_portfolio_concentration(),
+            "has_params": False
+        },
+        "calculate_portfolio_efficiency": {
+            "model": PortfolioEfficiencyParams,
+            "method": portfolio_analytics.calculate_portfolio_efficiency,
+            "has_params": True
+        },
+        "analyze_market_correlation": {
+            "model": MarketCorrelationParams,
+            "method": portfolio_analytics.analyze_market_correlation,
+            "has_params": True
+        },
+        "calculate_portfolio_metrics": {
+            "model": PortfolioMetricsParams,
+            "method": lambda *args: portfolio_analytics.calculate_portfolio_metrics(),
             "has_params": False
         }
     } 

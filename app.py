@@ -1,5 +1,6 @@
 from data_loader import DataLoader
 from protocol.portfolio_services import PortfolioServices
+from protocol.portfolio_analytics import PortfolioAnalytics
 from model.embeddings import IntentEmbeddings
 from model.llm import LLMProcessor
 import sys
@@ -20,9 +21,10 @@ def command(name: str) -> Callable:
 
 class PortfolioApp:
     def __init__(self):
-        """Initialize the Portfolio Application."""
+        """Initialize the portfolio application."""
         self.loader = DataLoader()
         self.portfolio = None
+        self.analytics = None
         self.commands: Dict[str, Callable] = {}
         
         for attr_name in dir(self):
@@ -49,8 +51,7 @@ class PortfolioApp:
 
     @command('setup')
     async def initialize(self):
-        """Initialize the application by loading data and setting up services."""
-        print("Initializing Portfolio Analysis System...")
+        """Initialize all components of the application."""
         try:
             print("Loading data from CSV files...")
             self.loader.load_csv_files()
@@ -63,7 +64,8 @@ class PortfolioApp:
             print("Embeddings initialized!")
 
             self.portfolio = PortfolioServices()
-            print("Portfolio services initialized!")
+            self.analytics = PortfolioAnalytics()
+            print("Portfolio services and analytics initialized!")
             print("\nSetup complete! You can now use 'python app.py chat' to start the chat interface.")
             
         except Exception as e:
@@ -75,6 +77,7 @@ class PortfolioApp:
         """Run the chat interface."""
         if self.portfolio is None:
             self.portfolio = PortfolioServices()
+            self.analytics = PortfolioAnalytics()
         
         self.llm_processor = LLMProcessor()
         await self.llm_processor.setup_agent()
